@@ -1,4 +1,6 @@
 [profile.default]
 viaIr = true
 evm_version = "london"
-solc_version = "0.8.23"
+solc_version = "0.8.26"
+optimizer = true
+optimizer_runs = 1000000
