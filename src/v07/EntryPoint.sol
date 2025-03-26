@@ -85,10 +85,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         uint256 preGas = gasleft();
         bytes memory context = getMemoryBytesFromOffset(opInfo.contextOffset);
         {
-            uint256 saveFreePtr;
-            assembly ("memory-safe") {
-                saveFreePtr := mload(0x40)
-            }
             bytes calldata callData = userOp.callData;
             bytes4 methodSig;
             assembly {

@@ -1,4 +1,4 @@
 [profile.default]
 viaIr = true
-evm_version = "london"
-solc_version = "0.8.23"
+evm_version = "cancun"
+solc_version = "0.8.28"

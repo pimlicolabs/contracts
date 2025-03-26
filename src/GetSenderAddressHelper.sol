@@ -7,12 +7,8 @@ interface IEntryPoint {
 
 contract GetSenderAddressOffchain {
     constructor(address entryPoint, bytes memory initCode) payable {
-        (bool success, bytes memory data) = entryPoint.call(
-            abi.encodeWithSelector(
-                IEntryPoint.getSenderAddress.selector,
-                initCode
-            )
-        );
+        (bool success, bytes memory data) =
+            entryPoint.call(abi.encodeWithSelector(IEntryPoint.getSenderAddress.selector, initCode));
 
         address sender;
         if (!success) {
