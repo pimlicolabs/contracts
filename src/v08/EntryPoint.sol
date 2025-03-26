@@ -12,8 +12,8 @@ import "account-abstraction-v8/core/UserOperationLib.sol";
 import "account-abstraction-v8/core/StakeManager.sol";
 import "account-abstraction-v8/core/NonceManager.sol";
 import "account-abstraction-v8/core/Helpers.sol";
-import "account-abstraction-v8/core/SenderCreator.sol";
-import "account-abstraction-v8/core/Eip7702Support.sol";
+import "./SenderCreator.sol";
+import "./Eip7702Support.sol";
 import "account-abstraction-v8/utils/Exec.sol";
 
 import "@openzeppelin/contracts-51/utils/ReentrancyGuardTransient.sol";
