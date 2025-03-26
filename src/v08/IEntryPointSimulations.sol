@@ -2,7 +2,7 @@
 pragma solidity >=0.7.5;
 
 import "account-abstraction-v8/interfaces/PackedUserOperation.sol";
-import "account-abstraction-v8/interfaces/IEntryPoint.sol";
+import "./IEntryPoint.sol";
 
 interface IEntryPointSimulations is IEntryPoint {
     struct TargetCallResult {

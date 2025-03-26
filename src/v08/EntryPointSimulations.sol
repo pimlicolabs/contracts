@@ -7,7 +7,6 @@ pragma solidity ^0.8.28;
 import "./EntryPoint.sol";
 import "./IEntryPointSimulations.sol";
 import {UserOperationLib} from "account-abstraction-v8/core/UserOperationLib.sol";
-import {IEntryPoint} from "account-abstraction-v8/interfaces/IEntryPoint.sol";
 
 struct SimulationArgs {
     PackedUserOperation op;

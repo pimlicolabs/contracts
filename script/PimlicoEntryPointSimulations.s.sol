@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Script.sol";
-import "../src/v07/PimlicoEntryPointSimulations.sol";
+import "../src/v08/PimlicoEntryPointSimulations.sol";
 
 contract PimlicoEntryPointSimulationsScript is Script {
     function setUp() public {}

@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 
 import "account-abstraction-v8/interfaces/IAccount.sol";
 import "account-abstraction-v8/interfaces/IAccountExecute.sol";
-import "account-abstraction-v8/interfaces/IEntryPoint.sol";
+import "./IEntryPoint.sol";
 import "account-abstraction-v8/interfaces/IPaymaster.sol";
 
 import "account-abstraction-v8/core/UserOperationLib.sol";
@@ -17,7 +17,6 @@ import "./Eip7702Support.sol";
 import "account-abstraction-v8/utils/Exec.sol";
 
 import "@openzeppelin/contracts-51/utils/ReentrancyGuardTransient.sol";
-import "@openzeppelin/contracts-51/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts-51/utils/cryptography/EIP712.sol";
 
 /**
@@ -25,7 +24,7 @@ import "@openzeppelin/contracts-51/utils/cryptography/EIP712.sol";
  * Only one instance required on each chain.
  * @custom:security-contact https://bounty.ethereum.org
  */
-contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardTransient, ERC165, EIP712 {
+contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardTransient, EIP712 {
     using UserOperationLib for PackedUserOperation;
 
     /**
@@ -53,97 +52,9 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
     constructor() EIP712(DOMAIN_NAME, DOMAIN_VERSION) {}
 
     /// @inheritdoc IEntryPoint
-    function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external nonReentrant {
-        uint256 opslen = ops.length;
-        UserOpInfo[] memory opInfos = new UserOpInfo[](opslen);
-        unchecked {
-            _iterateValidationPhase(ops, opInfos, address(0), 0);
-
-            uint256 collected = 0;
-            emit BeforeExecution();
-
-            for (uint256 i = 0; i < opslen; i++) {
-                uint256 paymasterPostOpGasLimit;
-                uint256 _collected;
-                (_collected, paymasterPostOpGasLimit) = _executeUserOp(i, ops[i], opInfos[i]);
-                collected += _collected;
-            }
-
-            _compensate(beneficiary, collected);
-        }
-    }
-
-    /// @inheritdoc IEntryPoint
-    function handleAggregatedOps(UserOpsPerAggregator[] calldata opsPerAggregator, address payable beneficiary)
-        external
-        nonReentrant
-    {
-        unchecked {
-            uint256 opasLen = opsPerAggregator.length;
-            uint256 totalOps = 0;
-            for (uint256 i = 0; i < opasLen; i++) {
-                UserOpsPerAggregator calldata opa = opsPerAggregator[i];
-                PackedUserOperation[] calldata ops = opa.userOps;
-                IAggregator aggregator = opa.aggregator;
-
-                // address(1) is special marker of "signature error"
-                require(address(aggregator) != address(1), SignatureValidationFailed(address(aggregator)));
-
-                if (address(aggregator) != address(0)) {
-                    // solhint-disable-next-line no-empty-blocks
-                    try aggregator.validateSignatures(ops, opa.signature) {}
-                    catch {
-                        revert SignatureValidationFailed(address(aggregator));
-                    }
-                }
-
-                totalOps += ops.length;
-            }
-
-            UserOpInfo[] memory opInfos = new UserOpInfo[](totalOps);
-
-            uint256 opIndex = 0;
-            for (uint256 a = 0; a < opasLen; a++) {
-                UserOpsPerAggregator calldata opa = opsPerAggregator[a];
-                PackedUserOperation[] calldata ops = opa.userOps;
-                IAggregator aggregator = opa.aggregator;
-
-                opIndex += _iterateValidationPhase(ops, opInfos, address(aggregator), opIndex);
-            }
-
-            emit BeforeExecution();
-
-            uint256 collected = 0;
-            opIndex = 0;
-            for (uint256 a = 0; a < opasLen; a++) {
-                UserOpsPerAggregator calldata opa = opsPerAggregator[a];
-                emit SignatureAggregatorChanged(address(opa.aggregator));
-                PackedUserOperation[] calldata ops = opa.userOps;
-                uint256 opslen = ops.length;
-
-                for (uint256 i = 0; i < opslen; i++) {
-                    uint256 paymasterPostOpGasLimit;
-                    uint256 _collected;
-                    (_collected, paymasterPostOpGasLimit) = _executeUserOp(opIndex, ops[i], opInfos[opIndex]);
-                    collected += _collected;
-                    opIndex++;
-                }
-            }
-
-            _compensate(beneficiary, collected);
-        }
-    }
-
-    /// @inheritdoc IEntryPoint
     function getUserOpHash(PackedUserOperation calldata userOp) public view returns (bytes32) {
         bytes32 overrideInitCodeHash = Eip7702Support._getEip7702InitCodeHashOverride(userOp);
         return MessageHashUtils.toTypedDataHash(getDomainSeparatorV4(), userOp.hash(overrideInitCodeHash));
-    }
-
-    /// @inheritdoc IEntryPoint
-    function getSenderAddress(bytes calldata initCode) external {
-        address sender = senderCreator().createSender(initCode);
-        revert SenderAddressResult(sender);
     }
 
     /// @inheritdoc IEntryPoint
@@ -152,10 +63,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
     }
 
     /// @inheritdoc IEntryPoint
-    function delegateAndRevert(address target, bytes calldata data) external {
-        (bool success, bytes memory ret) = target.delegatecall(data);
-        revert DelegateAndRevert(success, ret);
-    }
+    function delegateAndRevert(address target, bytes calldata data) external {}
 
     function getPackedUserOpTypeHash() external pure returns (bytes32) {
         return UserOperationLib.PACKED_USEROP_TYPEHASH;
@@ -163,26 +71,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
 
     function getDomainSeparatorV4() public view virtual returns (bytes32) {
         return _domainSeparatorV4();
-    }
-
-    /// @inheritdoc IERC165
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        // note: solidity "type(IEntryPoint).interfaceId" is without inherited methods but we want to check everything
-        return interfaceId
-            == (type(IEntryPoint).interfaceId ^ type(IStakeManager).interfaceId ^ type(INonceManager).interfaceId)
-            || interfaceId == type(IEntryPoint).interfaceId || interfaceId == type(IStakeManager).interfaceId
-            || interfaceId == type(INonceManager).interfaceId || super.supportsInterface(interfaceId);
-    }
-
-    /**
-     * Compensate the caller's beneficiary address with the collected fees of all UserOperations.
-     * @param beneficiary - The address to receive the fees.
-     * @param amount      - Amount to transfer.
-     */
-    function _compensate(address payable beneficiary, uint256 amount) internal virtual {
-        require(beneficiary != address(0), "AA90 invalid beneficiary");
-        (bool success,) = beneficiary.call{value: amount}("");
-        require(success, "AA91 failed send to beneficiary");
     }
 
     /**
@@ -249,35 +137,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
      */
     function _emitPrefundTooLow(UserOpInfo memory opInfo) internal virtual {
         emit UserOperationPrefundTooLow(opInfo.userOpHash, opInfo.mUserOp.sender, opInfo.mUserOp.nonce);
-    }
-
-    /**
-     * Iterate over calldata PackedUserOperation array and perform account and paymaster validation.
-     * @notice UserOpInfo is a global array of all UserOps while PackedUserOperation is grouped per aggregator.
-     *
-     * @param ops - an array of UserOps to be validated
-     * @param opInfos - an array of UserOp metadata being read and filled in during this function's execution
-     * @param expectedAggregator - an address of the aggregator specified for a given UserOp if any, or address(0)
-     * @param opIndexOffset - an offset for the index between 'ops' and 'opInfos' arrays, see the notice.
-     * @return opsLen - processed UserOps (length of "ops" array)
-     */
-    function _iterateValidationPhase(
-        PackedUserOperation[] calldata ops,
-        UserOpInfo[] memory opInfos,
-        address expectedAggregator,
-        uint256 opIndexOffset
-    ) internal returns (uint256 opsLen) {
-        unchecked {
-            opsLen = ops.length;
-            for (uint256 i = 0; i < opsLen; i++) {
-                UserOpInfo memory opInfo = opInfos[opIndexOffset + i];
-                (uint256 validationData, uint256 pmValidationData,) =
-                    _validatePrepayment(opIndexOffset + i, ops[i], opInfo);
-                _validateAccountAndPaymasterValidationData(
-                    opIndexOffset + i, validationData, pmValidationData, expectedAggregator
-                );
-            }
-        }
     }
 
     /**
