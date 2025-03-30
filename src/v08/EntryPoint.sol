@@ -44,8 +44,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
     // Threshold below which no penalty would be charged
     uint256 private constant PENALTY_GAS_THRESHOLD = 40000;
 
-    SenderCreator internal immutable _senderCreator = new SenderCreator();
-
     string internal constant DOMAIN_NAME = "ERC4337";
     string internal constant DOMAIN_VERSION = "1";
 
@@ -59,7 +57,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
 
     /// @inheritdoc IEntryPoint
     function senderCreator() public view virtual returns (ISenderCreator) {
-        return _senderCreator;
+        return this.senderCreator();
     }
 
     /// @inheritdoc IEntryPoint
@@ -176,13 +174,13 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
         public
         returns (uint256 actualGasCost, uint256 paymasterPostOpGasLimit)
     {
-        require(msg.sender == address(this), "AA92 internal call only");
+        //require(msg.sender == address(this), "AA92 internal call only");
         MemoryUserOp memory mUserOp = opInfo.mUserOp;
 
         uint256 callGasLimit = mUserOp.callGasLimit;
         unchecked {
             // handleOps was called with gas limit too low. abort entire bundle.
-            if (gasleft() * 63 / 64 < callGasLimit + mUserOp.paymasterPostOpGasLimit + INNER_GAS_OVERHEAD) {
+            if ((gasleft() * 63) / 64 < callGasLimit + mUserOp.paymasterPostOpGasLimit + INNER_GAS_OVERHEAD) {
                 revert FailedOp(0, "AA95 out of gas");
             }
         }
