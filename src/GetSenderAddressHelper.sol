@@ -18,7 +18,7 @@ contract GetSenderAddressOffchain {
                 }
                 assembly {
                     mstore(0, sender)
-                    return(12, 20)
+                    return(0, 32)
                 }
             } else {
                 revert("getSenderAddress failed without data");
