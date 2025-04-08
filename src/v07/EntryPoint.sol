@@ -17,14 +17,9 @@ import "account-abstraction/core/UserOperationLib.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/*
- * Account-Abstraction (EIP-4337) singleton EntryPoint implementation.
- * Only one instance required on each chain.
- */
-
-/// @custom:security-contact https://bounty.ethereum.org
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
-    // ERC165
+    // Custom event for bubbling up callphase reverts.
+    error CallPhaseReverted(bytes reason);
 
     using UserOperationLib for PackedUserOperation;
 
@@ -289,10 +284,13 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             bool success = Exec.call(mUserOp.sender, 0, callData, callGasLimit);
             if (!success) {
                 bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
-                if (result.length > 0) {
-                    emit UserOperationRevertReason(opInfo.userOpHash, mUserOp.sender, mUserOp.nonce, result);
-                }
-                mode = IPaymaster.PostOpMode.opReverted;
+                revert CallPhaseReverted(result);
+
+                //bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
+                //if (result.length > 0) {
+                //    emit UserOperationRevertReason(opInfo.userOpHash, mUserOp.sender, mUserOp.nonce, result);
+                //}
+                //mode = IPaymaster.PostOpMode.opReverted;
             }
         }
 
@@ -517,7 +515,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
 
     function _accountValidation(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory outOpInfo)
         public
-        returns (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit)
+        returns (uint256 validationData, uint256 _paymasterValidationData, uint256 paymasterVerificationGasLimit)
     {
         uint256 preGas = gasleft();
         MemoryUserOp memory mUserOp = outOpInfo.mUserOp;

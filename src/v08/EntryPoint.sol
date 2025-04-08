@@ -25,6 +25,9 @@ import "@openzeppelin/contracts-51/utils/cryptography/EIP712.sol";
  * @custom:security-contact https://bounty.ethereum.org
  */
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardTransient, EIP712 {
+    // Custom event for bubbling up callphase reverts.
+    error CallPhaseReverted(bytes reason);
+
     using UserOperationLib for PackedUserOperation;
 
     /**
@@ -189,13 +192,16 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
         if (callData.length > 0) {
             bool success = Exec.call(mUserOp.sender, 0, callData, callGasLimit);
             if (!success) {
-                uint256 freePtr = _getFreePtr();
                 bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
-                if (result.length > 0) {
-                    emit UserOperationRevertReason(opInfo.userOpHash, mUserOp.sender, mUserOp.nonce, result);
-                }
-                _restoreFreePtr(freePtr);
-                mode = IPaymaster.PostOpMode.opReverted;
+                revert CallPhaseReverted(result);
+
+                //uint256 freePtr = _getFreePtr();
+                //bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
+                //if (result.length > 0) {
+                //    emit UserOperationRevertReason(opInfo.userOpHash, mUserOp.sender, mUserOp.nonce, result);
+                //}
+                //_restoreFreePtr(freePtr);
+                //mode = IPaymaster.PostOpMode.opReverted;
             }
         }
 
