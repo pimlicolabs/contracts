@@ -109,7 +109,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             uint256 callGasLimit = targetUserOp.op.unpackCallGasLimit();
             bytes32 accountGasLimits = bytes32((uint256(gas) << 128) | uint128(callGasLimit));
             op.accountGasLimits = accountGasLimits;
-            return abi.encodeWithSelector(this._validatePrepayment.selector, 0, op, opInfo, gas, false);
+            return abi.encodeWithSelector(this._validatePrepayment.selector, 0, op, opInfo, false);
         }
 
         if (mode == BinarySearchMode.CallGasLimit) {
