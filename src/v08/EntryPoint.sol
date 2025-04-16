@@ -76,12 +76,11 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
 
     /**
      * Execute a user operation.
-     * @param opIndex    - Index into the opInfo array.
      * @param userOp     - The userOp to execute.
      * @param opInfo     - The opInfo filled by validatePrepayment for this userOp.
      * @return collected - The total amount this userOp paid.
      */
-    function _executeUserOp(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
+    function _executeUserOp(PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
         internal
         virtual
         returns (uint256 collected, uint256 paymasterPostOpGasLimit)
@@ -537,8 +536,13 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
      * @return validationData          - The account's validationData.
      * @return paymasterValidationData - The paymaster's validationData.
      */
-    function _validatePrepayment(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory outOpInfo)
-        internal
+    function _validatePrepayment(
+        uint256 opIndex,
+        PackedUserOperation calldata userOp,
+        UserOpInfo memory outOpInfo,
+        bool validatePaymasterPrepayment
+    )
+        public
         virtual
         returns (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit)
     {
@@ -574,7 +578,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
 
         bytes memory context;
         uint256 remainingGas = gasleft();
-        if (mUserOp.paymaster != address(0)) {
+        if (mUserOp.paymaster != address(0) && validatePaymasterPrepayment) {
             (context, paymasterValidationData) =
                 _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, userOp.unpackPaymasterVerificationGasLimit());
         }
