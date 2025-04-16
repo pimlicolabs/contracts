@@ -80,11 +80,12 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
      * @param opInfo     - The opInfo filled by validatePrepayment for this userOp.
      * @return collected - The total amount this userOp paid.
      */
-    function _executeUserOp(PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
+    function _executeUserOp(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
         internal
         virtual
         returns (uint256 collected, uint256 paymasterPostOpGasLimit)
     {
+        (opIndex);
         uint256 preGas = gasleft();
         bytes memory context = _getMemoryBytesFromOffset(opInfo.contextOffset);
         bool success;

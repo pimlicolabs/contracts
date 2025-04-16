@@ -344,7 +344,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) =
             _validatePrepayment(0, op, opInfo, true);
 
-        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(op, opInfo);
+        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo);
 
         return ExecutionResult(
             opInfo.preOpGas,
