@@ -238,7 +238,8 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             uint256 midGas = (minGas + maxGas) / 2;
 
             bytes memory payload = encodeBinarySearchCalldata(mode, targetUserOp, midGas);
-            (bool success, bytes memory result) = thisContract.simulateCall(entryPoint, payload, gasleft());
+            // Multiply by 2 to leave some buffer because some calls consume entire gasLeft when they revert.
+            (bool success, bytes memory result) = thisContract.simulateCall(entryPoint, payload, midGas * 2);
 
             if (success) {
                 // If the call is successful, reduce the maxGas and store this as the candidate
