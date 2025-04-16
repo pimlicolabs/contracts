@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.23;
 /* solhint-disable avoid-low-level-calls */
 /* solhint-disable no-inline-assembly */
@@ -17,6 +18,13 @@ import "account-abstraction/core/UserOperationLib.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/*
+ * Account-Abstraction (EIP-4337) singleton EntryPoint implementation.
+ * Only one instance required on each chain.
+ */
+
+/// @custom:notice This EntryPoint closely resembles the actual EntryPoint with some diffs seen at https://www.diffchecker.com/7fqIFrkY
+/// @custom:security-contact https://bounty.ethereum.org
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     // Custom event for bubbling up callphase reverts.
     error CallPhaseReverted(bytes reason);
@@ -40,22 +48,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
     uint256 private constant REVERT_REASON_MAX_LEN = 2048;
     uint256 private constant PENALTY_PERCENT = 10;
 
-    /// @inheritdoc IERC165
-    // function supportsInterface(
-    //     bytes4 interfaceId
-    // ) public view virtual override returns (bool) {
-    //     // note: solidity "type(IEntryPoint).interfaceId" is without inherited methods but we want to check everything
-    //     return
-    //         interfaceId ==
-    //         (type(IEntryPoint).interfaceId ^
-    //             type(IStakeManager).interfaceId ^
-    //             type(INonceManager).interfaceId) ||
-    //         interfaceId == type(IEntryPoint).interfaceId ||
-    //         interfaceId == type(IStakeManager).interfaceId ||
-    //         interfaceId == type(INonceManager).interfaceId ||
-    //         super.supportsInterface(interfaceId);
-    // }
-
     /**
      * Compensate the caller's beneficiary address with the collected fees of all UserOperations.
      * @param beneficiary - The address to receive the fees.
@@ -73,10 +65,11 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
      * @param opInfo     - The opInfo filled by validatePrepayment for this userOp.
      * @return collected - The total amount this userOp paid.
      */
-    function _executeUserOp(PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
+    function _executeUserOp(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
         internal
         returns (uint256 collected, uint256 paymasterPostOpGasLimit)
     {
+        (opIndex);
         uint256 preGas = gasleft();
         bytes memory context = getMemoryBytesFromOffset(opInfo.contextOffset);
         {
@@ -113,124 +106,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
     function emitPrefundTooLow(UserOpInfo memory opInfo) internal virtual {
         emit UserOperationPrefundTooLow(opInfo.userOpHash, opInfo.mUserOp.sender, opInfo.mUserOp.nonce);
     }
-
-    /// @inheritdoc IEntryPoint
-    // function handleOps(
-    //     PackedUserOperation[] calldata ops,
-    //     address payable beneficiary
-    // ) public nonReentrant {
-    //     uint256 opslen = ops.length;
-    //     UserOpInfo[] memory opInfos = new UserOpInfo[](opslen);
-    //
-    //     unchecked {
-    //         for (uint256 i = 0; i < opslen; i++) {
-    //             UserOpInfo memory opInfo = opInfos[i];
-    //             (
-    //                 uint256 validationData,
-    //                 uint256 pmValidationData,
-    //                 uint256 paymasterVerificationGasLimit
-    //             ) = _validatePrepayment(i, ops[i], opInfo);
-    //             _validateAccountAndPaymasterValidationData(
-    //                 i,
-    //                 validationData,
-    //                 pmValidationData,
-    //                 address(0)
-    //             );
-    //         }
-    //
-    //         uint256 collected = 0;
-    //         emit BeforeExecution();
-    //
-    //         for (uint256 i = 0; i < opslen; i++) {
-    //             (
-    //                 uint256 collectedAmount,
-    //                 uint256 paymasterVerificationGasLimit
-    //             ) = _executeUserOp(i, ops[i], opInfos[i]);
-    //             collected += collectedAmount;
-    //         }
-    //
-    //         _compensate(beneficiary, collected);
-    //     }
-    // }
-
-    /// @inheritdoc IEntryPoint
-    // function handleAggregatedOps(
-    //     UserOpsPerAggregator[] calldata opsPerAggregator,
-    //     address payable beneficiary
-    // ) public nonReentrant {
-    //     uint256 opasLen = opsPerAggregator.length;
-    //     uint256 totalOps = 0;
-    //     for (uint256 i = 0; i < opasLen; i++) {
-    //         UserOpsPerAggregator calldata opa = opsPerAggregator[i];
-    //         PackedUserOperation[] calldata ops = opa.userOps;
-    //         IAggregator aggregator = opa.aggregator;
-    //
-    //         //address(1) is special marker of "signature error"
-    //         require(
-    //             address(aggregator) != address(1),
-    //             "AA96 invalid aggregator"
-    //         );
-    //
-    //         if (address(aggregator) != address(0)) {
-    //             // solhint-disable-next-line no-empty-blocks
-    //             try aggregator.validateSignatures(ops, opa.signature) {} catch {
-    //                 revert SignatureValidationFailed(address(aggregator));
-    //             }
-    //         }
-    //
-    //         totalOps += ops.length;
-    //     }
-    //
-    //     UserOpInfo[] memory opInfos = new UserOpInfo[](totalOps);
-    //
-    //     uint256 opIndex = 0;
-    //     for (uint256 a = 0; a < opasLen; a++) {
-    //         UserOpsPerAggregator calldata opa = opsPerAggregator[a];
-    //         PackedUserOperation[] calldata ops = opa.userOps;
-    //         IAggregator aggregator = opa.aggregator;
-    //
-    //         uint256 opslen = ops.length;
-    //         for (uint256 i = 0; i < opslen; i++) {
-    //             UserOpInfo memory opInfo = opInfos[opIndex];
-    //             (
-    //                 uint256 validationData,
-    //                 uint256 paymasterValidationData,
-    //                 uint256 paymasterVerificationGasLimit
-    //             ) = _validatePrepayment(opIndex, ops[i], opInfo);
-    //             _validateAccountAndPaymasterValidationData(
-    //                 i,
-    //                 validationData,
-    //                 paymasterValidationData,
-    //                 address(aggregator)
-    //             );
-    //             opIndex++;
-    //         }
-    //     }
-    //
-    //     emit BeforeExecution();
-    //
-    //     uint256 collected = 0;
-    //     opIndex = 0;
-    //     for (uint256 a = 0; a < opasLen; a++) {
-    //         UserOpsPerAggregator calldata opa = opsPerAggregator[a];
-    //         emit SignatureAggregatorChanged(address(opa.aggregator));
-    //         PackedUserOperation[] calldata ops = opa.userOps;
-    //         uint256 opslen = ops.length;
-    //
-    //         for (uint256 i = 0; i < opslen; i++) {
-    //             (
-    //                 uint256 collectedAmount,
-    //                 uint256 paymasterVerificationGasLimit
-    //             ) = _executeUserOp(i, ops[i], opInfos[i]);
-    //             collected += collectedAmount;
-    //
-    //             opIndex++;
-    //         }
-    //     }
-    //     emit SignatureAggregatorChanged(address(0));
-    //
-    //     _compensate(beneficiary, collected);
-    // }
 
     /**
      * A memory copy of UserOp static fields only.
@@ -274,7 +149,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         uint256 callGasLimit = mUserOp.callGasLimit;
         unchecked {
             // handleOps was called with gas limit too low. abort entire bundle.
-            if ((gasleft() * 63) / 64 < callGasLimit + mUserOp.paymasterPostOpGasLimit + INNER_GAS_OVERHEAD) {
+            if (gasleft() * 63 / 64 < callGasLimit + mUserOp.paymasterPostOpGasLimit + INNER_GAS_OVERHEAD) {
                 revert FailedOp(0, "AA95 out of gas");
             }
         }
@@ -285,12 +160,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             if (!success) {
                 bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
                 revert CallPhaseReverted(result);
-
-                //bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
-                //if (result.length > 0) {
-                //    emit UserOperationRevertReason(opInfo.userOpHash, mUserOp.sender, mUserOp.nonce, result);
-                //}
-                //mode = IPaymaster.PostOpMode.opReverted;
             }
         }
 
@@ -368,12 +237,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         }
     }
 
-    /// @inheritdoc IEntryPoint
-    // function getSenderAddress(bytes calldata initCode) public {
-    //     address sender = senderCreator().createSender(initCode);
-    //     revert SenderAddressResult(sender);
-    // }
-
     /**
      * Call account.validateUserOp.
      * Revert (with FailedOp) in case validateUserOp reverts, or account didn't send required prefund.
@@ -432,8 +295,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         uint256 opIndex,
         PackedUserOperation calldata op,
         UserOpInfo memory opInfo,
-        uint256 requiredPreFund,
-        uint256 pmVerificationGasLimit
+        uint256 requiredPreFund
     ) internal returns (bytes memory context, uint256 validationData) {
         unchecked {
             uint256 preGas = gasleft();
@@ -445,6 +307,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
                 revert FailedOp(opIndex, "AA31 paymaster deposit too low");
             }
             paymasterInfo.deposit = deposit - requiredPreFund;
+            uint256 pmVerificationGasLimit = mUserOp.paymasterVerificationGasLimit;
             try IPaymaster(paymaster).validatePaymasterUserOp{gas: pmVerificationGasLimit}(
                 op, opInfo.userOpHash, requiredPreFund
             ) returns (bytes memory _context, uint256 _validationData) {
@@ -513,47 +376,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         aggregator = data.aggregator;
     }
 
-    function _accountValidation(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory outOpInfo)
-        public
-        returns (uint256 validationData, uint256 _paymasterValidationData, uint256 paymasterVerificationGasLimit)
-    {
-        uint256 preGas = gasleft();
-        MemoryUserOp memory mUserOp = outOpInfo.mUserOp;
-        _copyUserOpToMemory(userOp, mUserOp);
-        outOpInfo.userOpHash = getUserOpHash(userOp);
-
-        // Validate all numeric values in userOp are well below 128 bit, so they can safely be added
-        // and multiplied without causing overflow.
-        uint256 verificationGasLimit = mUserOp.verificationGasLimit;
-        uint256 maxGasValues = mUserOp.preVerificationGas | verificationGasLimit | mUserOp.callGasLimit
-            | mUserOp.paymasterVerificationGasLimit | mUserOp.paymasterPostOpGasLimit | mUserOp.maxFeePerGas
-            | mUserOp.maxPriorityFeePerGas;
-        require(maxGasValues <= type(uint120).max, "AA94 gas values overflow");
-
-        uint256 requiredPreFund = _getRequiredPrefund(mUserOp);
-        validationData = _validateAccountPrepayment(opIndex, userOp, outOpInfo, requiredPreFund, gasleft());
-
-        if (!_validateAndUpdateNonce(mUserOp.sender, mUserOp.nonce)) {
-            revert FailedOp(opIndex, "AA25 invalid account nonce");
-        }
-
-        unchecked {
-            if (preGas - gasleft() > verificationGasLimit) {
-                revert FailedOp(opIndex, "AA26 over verificationGasLimit");
-            }
-        }
-
-        bytes memory context;
-        uint256 remainingGas = gasleft();
-        if (mUserOp.paymaster != address(0)) {}
-        unchecked {
-            outOpInfo.prefund = requiredPreFund;
-            outOpInfo.contextOffset = getOffsetOfMemoryBytes(context);
-            outOpInfo.preOpGas = preGas - gasleft() + userOp.preVerificationGas;
-        }
-        paymasterVerificationGasLimit = ((remainingGas - gasleft()) * 115) / 100;
-    }
-
     function _paymasterValidation(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory outOpInfo)
         public
         returns (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit)
@@ -567,7 +389,7 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         uint256 requiredPreFund = _getRequiredPrefund(mUserOp);
         if (mUserOp.paymaster != address(0)) {
             (context, paymasterValidationData) =
-                _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, requiredPreFund, gasleft());
+                _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, requiredPreFund);
         }
     }
 
@@ -578,10 +400,12 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
      * @param opIndex - The index of this userOp into the "opInfos" array.
      * @param userOp  - The userOp to validate.
      */
-    function _validatePrepayment(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory outOpInfo)
-        public
-        returns (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit)
-    {
+    function _validatePrepayment(
+        uint256 opIndex,
+        PackedUserOperation calldata userOp,
+        UserOpInfo memory outOpInfo,
+        bool validatePaymasterPrepayment
+    ) public returns (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) {
         uint256 preGas = gasleft();
         MemoryUserOp memory mUserOp = outOpInfo.mUserOp;
         _copyUserOpToMemory(userOp, mUserOp);
@@ -610,10 +434,9 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
 
         bytes memory context;
         uint256 remainingGas = gasleft();
-        if (mUserOp.paymaster != address(0)) {
-            uint256 pmVerificationGasLimit = outOpInfo.mUserOp.paymasterVerificationGasLimit;
+        if (mUserOp.paymaster != address(0) && validatePaymasterPrepayment) {
             (context, paymasterValidationData) =
-                _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, requiredPreFund, pmVerificationGasLimit);
+                _validatePaymasterPrepayment(opIndex, userOp, outOpInfo, requiredPreFund);
         }
         unchecked {
             outOpInfo.prefund = requiredPreFund;
@@ -661,22 +484,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
                             revert FailedOpWithRevert(
                                 0, "AA50 postOp reverted", Exec.getReturnData(REVERT_REASON_MAX_LEN)
                             );
-                            //emit PostOpRevertReason(
-                            //    opInfo.userOpHash,
-                            //    opInfo.mUserOp.sender,
-                            //    opInfo.mUserOp.nonce,
-                            //    Exec.getReturnData(REVERT_REASON_MAX_LEN)
-                            //);
-                            //actualGas = preGas - gasleft() + opInfo.preOpGas;
-                            //(
-                            //    actualGasCost,
-                            //    paymasterPostOpGasLimit
-                            //) = _postExecution(
-                            //    IPaymaster.PostOpMode.postOpReverted,
-                            //    opInfo,
-                            //    context,
-                            //    actualGas
-                            //);
                         }
                         paymasterPostOpGasLimit = remainingGas - gasleft();
                     }
@@ -754,10 +561,4 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             data := offset
         }
     }
-
-    /// @inheritdoc IEntryPoint
-    // function delegateAndRevert(address target, bytes calldata data) external {
-    //     (bool success, bytes memory ret) = target.delegatecall(data);
-    //     revert DelegateAndRevert(success, ret);
-    // }
 }
