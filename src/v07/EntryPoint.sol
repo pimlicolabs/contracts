@@ -23,6 +23,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * Only one instance required on each chain.
  */
 
+/// @custom:notice This EntryPoint closely resembles the actual EntryPoint with some diffs seen at https://www.diffchecker.com/7fqIFrkY
 /// @custom:security-contact https://bounty.ethereum.org
 contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard {
     // Custom event for bubbling up callphase reverts.
