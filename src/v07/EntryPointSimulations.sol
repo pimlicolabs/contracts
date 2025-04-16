@@ -51,7 +51,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         (
             uint256 validationData,
             uint256 paymasterValidationData, // uint256 paymasterVerificationGasLimit
-        ) = _validatePrepayment(0, userOp, outOpInfo);
+        ) = _validatePrepayment(0, userOp, outOpInfo, true);
 
         _validateAccountAndPaymasterValidationData(0, validationData, paymasterValidationData, address(0));
 
@@ -109,7 +109,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             uint256 callGasLimit = targetUserOp.op.unpackCallGasLimit();
             bytes32 accountGasLimits = bytes32((uint256(gas) << 128) | uint128(callGasLimit));
             op.accountGasLimits = accountGasLimits;
-            return abi.encodeWithSelector(this._accountValidation.selector, 0, op, opInfo, gas);
+            return abi.encodeWithSelector(this._validatePrepayment.selector, 0, op, opInfo, gas, false);
         }
 
         if (mode == BinarySearchMode.CallGasLimit) {
@@ -179,7 +179,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             UserOpInfo memory queuedOpInfo;
             SimulationArgs calldata args = queuedUserOps[i];
             _simulationOnlyValidations(args.op);
-            _validatePrepayment(0, args.op, queuedOpInfo);
+            _validatePrepayment(0, args.op, queuedOpInfo, true);
 
             if (args.target == address(0)) {
                 continue;
@@ -326,7 +326,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         // Run our target userOperation.
         UserOpInfo memory opInfo;
         _simulationOnlyValidations(op);
-        _validatePrepayment(0, op, opInfo);
+        _validatePrepayment(0, op, opInfo, true);
 
         if (target == address(0)) {
             return TargetCallResult(0, false, new bytes(0));
@@ -342,7 +342,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         UserOpInfo memory opInfo;
         _simulationOnlyValidations(op);
         (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) =
-            _validatePrepayment(0, op, opInfo);
+            _validatePrepayment(0, op, opInfo, true);
 
         (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(op, opInfo);
 
