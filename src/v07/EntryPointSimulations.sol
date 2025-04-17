@@ -102,7 +102,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             op.paymasterAndData =
                 abi.encodePacked(paymaster, bytes16(uint128(gas)), bytes16(uint128(postOpGasLimit)), paymasterData);
 
-            return abi.encodeWithSelector(this._paymasterValidation.selector, 0, targetUserOp.op, opInfo, gas);
+            return abi.encodeWithSelector(this._paymasterValidation.selector, 0, op, opInfo, gas);
         }
 
         if (mode == BinarySearchMode.VerificationGasLimit) {
