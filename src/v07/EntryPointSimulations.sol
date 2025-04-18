@@ -185,7 +185,8 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
                 continue;
             }
 
-            args.target.call(args.targetCallData);
+            (bool success,) = args.target.call(args.targetCallData);
+            // Ignore success value
         }
     }
 
@@ -338,7 +339,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
     }
 
     /// @inheritdoc IEntryPointSimulations
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes calldata targetCallData)
+    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes memory targetCallData)
         public
         nonReentrant
         returns (ExecutionResult memory)

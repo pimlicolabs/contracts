@@ -65,7 +65,7 @@ interface IEntryPointSimulations is IEntryPoint {
      * @param op The UserOperation to simulate.
      * @return the execution result structure
      */
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes calldata targetCallData)
+    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes memory targetCallData)
         external
         returns (ExecutionResult memory);
 }
