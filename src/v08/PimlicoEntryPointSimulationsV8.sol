@@ -4,12 +4,16 @@ import "./EntryPointSimulations.sol";
 import "account-abstraction-v8/utils/Exec.sol";
 
 contract PimlicoEntryPointSimulationsV8 {
+    event PimlicoSimulationV8Deployed();
+
     EntryPointSimulations internal eps = new EntryPointSimulations();
 
     uint256 private constant REVERT_REASON_MAX_LEN = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     bytes4 private constant selector = bytes4(keccak256("delegateAndRevert(address,bytes)"));
 
-    constructor() {}
+    constructor() {
+        emit PimlicoSimulationV8Deployed();
+    }
 
     function simulateEntryPoint(address payable ep, bytes[] memory data) public returns (bytes[] memory) {
         bytes[] memory returnDataArray = new bytes[](data.length);
