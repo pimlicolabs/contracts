@@ -185,8 +185,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
                 continue;
             }
 
-            (bool success,) = args.target.call(args.targetCallData);
-            // Ignore success value
+            args.target.call(args.targetCallData);
         }
     }
 
@@ -351,6 +350,12 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
 
         (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo);
 
+        bool targetSuccess;
+        bytes memory targetResult;
+        if (target != address(0)) {
+            (targetSuccess, targetResult) = target.call(targetCallData);
+        }
+
         return ExecutionResult(
             opInfo.preOpGas,
             paid,
@@ -358,8 +363,8 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
             paymasterValidationData,
             paymasterVerificationGasLimit,
             paymasterPostOpGasLimit,
-            false,
-            "0x"
+            targetSuccess,
+            targetResult
         );
     }
 
