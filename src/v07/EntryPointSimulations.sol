@@ -358,6 +358,37 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         );
     }
 
+    /// @inheritdoc IEntryPointSimulations
+    function simulateHandleOpWithTarget(PackedUserOperation calldata op, address target, bytes calldata targetCallData)
+        public
+        nonReentrant
+        returns (ExecutionResult memory)
+    {
+        UserOpInfo memory opInfo;
+        _simulationOnlyValidations(op);
+        (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) =
+            _validatePrepayment(0, op, opInfo, true);
+
+        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo);
+
+        bool targetSuccess;
+        bytes memory targetResult;
+        if (target != address(0)) {
+            (targetSuccess, targetResult) = target.call(targetCallData);
+        }
+
+        return ExecutionResult(
+            opInfo.preOpGas,
+            paid,
+            validationData,
+            paymasterValidationData,
+            paymasterVerificationGasLimit,
+            paymasterPostOpGasLimit,
+            targetSuccess,
+            targetResult
+        );
+    }
+
     function simulateHandleOpBulk(PackedUserOperation[] calldata ops) public returns (ExecutionResult[] memory) {
         ExecutionResult[] memory results = new ExecutionResult[](ops.length);
 
