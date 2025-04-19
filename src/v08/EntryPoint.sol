@@ -109,29 +109,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
     }
 
     /**
-     * Emit the UserOperationEvent for the given UserOperation.
-     *
-     * @param opInfo         - The details of the current UserOperation.
-     * @param success        - Whether the execution of the UserOperation has succeeded or not.
-     * @param actualGasCost  - The actual cost of the consumed gas charged from the sender or the paymaster.
-     * @param actualGas      - The actual amount of gas used.
-     */
-    function _emitUserOperationEvent(UserOpInfo memory opInfo, bool success, uint256 actualGasCost, uint256 actualGas)
-        internal
-        virtual
-    {
-        emit UserOperationEvent(
-            opInfo.userOpHash,
-            opInfo.mUserOp.sender,
-            opInfo.mUserOp.paymaster,
-            opInfo.mUserOp.nonce,
-            success,
-            actualGasCost,
-            actualGas
-        );
-    }
-
-    /**
      * Emit the UserOperationPrefundTooLow event for the given UserOperation.
      *
      * @param opInfo - The details of the current UserOperation.
@@ -694,7 +671,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
                 if (mode == IPaymaster.PostOpMode.postOpReverted) {
                     actualGasCost = prefund;
                     _emitPrefundTooLow(opInfo);
-                    _emitUserOperationEvent(opInfo, false, actualGasCost, actualGas);
                 } else {
                     assembly ("memory-safe") {
                         mstore(0, INNER_REVERT_LOW_PREFUND)
@@ -705,7 +681,6 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuardT
                 uint256 refund = prefund - actualGasCost;
                 _incrementDeposit(refundAddress, refund);
                 bool success = mode == IPaymaster.PostOpMode.opSucceeded;
-                _emitUserOperationEvent(opInfo, success, actualGasCost, actualGas);
             }
         } // unchecked
     }

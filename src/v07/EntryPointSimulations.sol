@@ -338,28 +338,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
     }
 
     /// @inheritdoc IEntryPointSimulations
-    function simulateHandleOp(PackedUserOperation calldata op) public nonReentrant returns (ExecutionResult memory) {
-        UserOpInfo memory opInfo;
-        _simulationOnlyValidations(op);
-        (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) =
-            _validatePrepayment(0, op, opInfo, true);
-
-        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo);
-
-        return ExecutionResult(
-            opInfo.preOpGas,
-            paid,
-            validationData,
-            paymasterValidationData,
-            paymasterVerificationGasLimit,
-            paymasterPostOpGasLimit,
-            false,
-            "0x"
-        );
-    }
-
-    /// @inheritdoc IEntryPointSimulations
-    function simulateHandleOpWithTarget(PackedUserOperation calldata op, address target, bytes calldata targetCallData)
+    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes memory targetCallData)
         public
         nonReentrant
         returns (ExecutionResult memory)
@@ -393,7 +372,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         ExecutionResult[] memory results = new ExecutionResult[](ops.length);
 
         for (uint256 i = 0; i < ops.length; i++) {
-            ExecutionResult memory result = simulateHandleOp(ops[i]);
+            ExecutionResult memory result = simulateHandleOp(ops[i], address(0), "");
 
             results[i] = result;
         }
@@ -442,20 +421,5 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         }
         // always revert
         return ("");
-    }
-
-    //make sure depositTo cost is more than normal EntryPoint's cost,
-    // to mitigate DoS vector on the bundler
-    // empiric test showed that without this wrapper, simulation depositTo costs less..
-    function depositTo(address account) public payable override(IStakeManager, StakeManager) {
-        unchecked {
-            // silly code, to waste some gas to make sure depositTo is always little more
-            // expensive than on-chain call
-            uint256 x = 1;
-            while (x < 5) {
-                x++;
-            }
-            StakeManager.depositTo(account);
-        }
     }
 }
