@@ -65,10 +65,12 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
      * @param opInfo     - The opInfo filled by validatePrepayment for this userOp.
      * @return collected - The total amount this userOp paid.
      */
-    function _executeUserOp(uint256 opIndex, PackedUserOperation calldata userOp, UserOpInfo memory opInfo)
-        internal
-        returns (uint256 collected, uint256 paymasterPostOpGasLimit)
-    {
+    function _executeUserOp(
+        uint256 opIndex,
+        PackedUserOperation calldata userOp,
+        UserOpInfo memory opInfo,
+        bool throwPostOpRevert
+    ) internal returns (uint256 collected, uint256 paymasterPostOpGasLimit) {
         (opIndex);
         uint256 preGas = gasleft();
         bytes memory context = getMemoryBytesFromOffset(opInfo.contextOffset);
@@ -81,9 +83,11 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
             }
             if (methodSig == IAccountExecute.executeUserOp.selector) {
                 bytes memory executeUserOp = abi.encodeCall(IAccountExecute.executeUserOp, (userOp, opInfo.userOpHash));
-                (collected, paymasterPostOpGasLimit) = innerHandleOp(executeUserOp, opInfo, context, preGas);
+                (collected, paymasterPostOpGasLimit) =
+                    innerHandleOp(executeUserOp, opInfo, context, preGas, throwPostOpRevert);
             } else {
-                (collected, paymasterPostOpGasLimit) = innerHandleOp(callData, opInfo, context, preGas);
+                (collected, paymasterPostOpGasLimit) =
+                    innerHandleOp(callData, opInfo, context, preGas, throwPostOpRevert);
             }
         }
     }
@@ -140,10 +144,13 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
      * @param context  - The context bytes.
      * @return actualGasCost - the actual cost in eth this UserOperation paid for gas
      */
-    function innerHandleOp(bytes memory callData, UserOpInfo memory opInfo, bytes memory context, uint256 preGas)
-        public
-        returns (uint256 actualGasCost, uint256 paymasterPostOpGasLimit)
-    {
+    function innerHandleOp(
+        bytes memory callData,
+        UserOpInfo memory opInfo,
+        bytes memory context,
+        uint256 preGas,
+        bool throwPostOpRevert
+    ) public returns (uint256 actualGasCost, uint256 paymasterPostOpGasLimit) {
         MemoryUserOp memory mUserOp = opInfo.mUserOp;
 
         uint256 callGasLimit = mUserOp.callGasLimit;
@@ -158,8 +165,11 @@ contract EntryPoint is IEntryPoint, StakeManager, NonceManager, ReentrancyGuard 
         if (callData.length > 0) {
             bool success = Exec.call(mUserOp.sender, 0, callData, callGasLimit);
             if (!success) {
-                bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
-                revert CallPhaseReverted(result);
+                if (throwPostOpRevert) {
+                    bytes memory result = Exec.getReturnData(REVERT_REASON_MAX_LEN);
+                    revert CallPhaseReverted(result);
+                }
+                mode = IPaymaster.PostOpMode.opReverted;
             }
         }
 

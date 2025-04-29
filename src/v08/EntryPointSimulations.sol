@@ -338,7 +338,12 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
     }
 
     /// @inheritdoc IEntryPointSimulations
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes memory targetCallData)
+    function simulateHandleOp(
+        PackedUserOperation calldata op,
+        address target,
+        bytes memory targetCallData,
+        bool throwPostOpRevert
+    )
         public
         nonReentrant
         returns (ExecutionResult memory)
@@ -348,7 +353,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         (uint256 validationData, uint256 paymasterValidationData, uint256 paymasterVerificationGasLimit) =
             _validatePrepayment(0, op, opInfo, true);
 
-        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo);
+        (uint256 paid, uint256 paymasterPostOpGasLimit) = _executeUserOp(0, op, opInfo, throwPostOpRevert);
 
         bool targetSuccess;
         bytes memory targetResult;
@@ -372,7 +377,7 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         ExecutionResult[] memory results = new ExecutionResult[](ops.length);
 
         for (uint256 i = 0; i < ops.length; i++) {
-            ExecutionResult memory result = simulateHandleOp(ops[i], address(0), "");
+            ExecutionResult memory result = simulateHandleOp(ops[i], address(0), "", false);
 
             results[i] = result;
         }
@@ -380,10 +385,15 @@ contract EntryPointSimulations is EntryPoint, IEntryPointSimulations {
         return results;
     }
 
-    function simulateHandleOpLast(PackedUserOperation[] calldata ops) external returns (ExecutionResult memory) {
+    function simulateHandleOpLast(PackedUserOperation[] calldata ops, bool throwPostOpRevert) external returns (ExecutionResult memory) {
         ExecutionResult[] memory results = new ExecutionResult[](ops.length);
 
-        results = simulateHandleOpBulk(ops);
+        for (uint256 i = 0; i < ops.length; i++) {
+            bool isLast = i == ops.length - 1;
+            // Only apply throwPostOpRevert to the last operation
+            ExecutionResult memory result = simulateHandleOp(ops[i], address(0), "", isLast && throwPostOpRevert);
+            results[i] = result;
+        }
 
         return results[ops.length - 1];
     }

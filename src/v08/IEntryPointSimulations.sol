@@ -72,9 +72,15 @@ interface IEntryPointSimulations is IEntryPoint {
      * Note that in order to collect the the success/failure of the target call, it must be executed
      * with trace enabled to track the emitted events.
      * @param op The UserOperation to simulate.
+     * @param throwPostOpRevert - If enabled, postOp will bubble up reverts.
      * @return the execution result structure
      */
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes calldata targetCallData)
+    function simulateHandleOp(
+        PackedUserOperation calldata op,
+        address target,
+        bytes calldata targetCallData,
+        bool throwPostOpRevert
+    )
         external
         returns (ExecutionResult memory);
 }
