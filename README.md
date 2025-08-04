@@ -1,3 +1,6 @@
+> [!WARNING]
+> This repo is deprecated, all contracts related to ERC-4337 simulations can be found in Alto under https://github.com/pimlicolabs/alto/tree/main/contracts
+
 ## To deploy to a chain:
 
 1. Edit the .env and update `CHAIN_KEYS`. The format is
